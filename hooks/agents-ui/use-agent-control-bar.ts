@@ -22,6 +22,28 @@ const trackSourceToProtocol = (source: Track.Source) => {
   }
 };
 
+const hasMediaCaptureSupport = (source: Track.Source) => {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  const mediaDevices = navigator.mediaDevices;
+
+  if (!mediaDevices) {
+    return false;
+  }
+
+  switch (source) {
+    case Track.Source.Microphone:
+    case Track.Source.Camera:
+      return typeof mediaDevices.getUserMedia === 'function';
+    case Track.Source.ScreenShare:
+      return typeof mediaDevices.getDisplayMedia === 'function';
+    default:
+      return false;
+  }
+};
+
 export interface PublishPermissions {
   camera: boolean;
   microphone: boolean;
@@ -111,6 +133,10 @@ export function useInputControls({
 
   const handleToggleCamera = useCallback(
     async (enabled?: boolean) => {
+      if (!hasMediaCaptureSupport(Track.Source.Camera)) {
+        return;
+      }
+
       if (screenShareToggle.enabled) {
         screenShareToggle.toggle(false);
       }
@@ -123,6 +149,10 @@ export function useInputControls({
 
   const handleToggleMicrophone = useCallback(
     async (enabled?: boolean) => {
+      if (!hasMediaCaptureSupport(Track.Source.Microphone)) {
+        return;
+      }
+
       await microphoneToggle.toggle(enabled);
       // persist audio input enabled preference
       saveAudioInputEnabled(!microphoneToggle.enabled);
@@ -132,6 +162,10 @@ export function useInputControls({
 
   const handleToggleScreenShare = useCallback(
     async (enabled?: boolean) => {
+      if (!hasMediaCaptureSupport(Track.Source.ScreenShare)) {
+        return;
+      }
+
       if (cameraToggle.enabled) {
         cameraToggle.toggle(false);
       }
