@@ -1,3 +1,7 @@
+'use client';
+
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
 function WelcomeImage() {
@@ -20,7 +24,7 @@ function WelcomeImage() {
 
 interface WelcomeViewProps {
   startButtonText: string;
-  onStartCall: () => void;
+  onStartCall: () => void | Promise<void>;
 }
 
 export const WelcomeView = ({
@@ -28,6 +32,25 @@ export const WelcomeView = ({
   onStartCall,
   ref,
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleClick = async () => {
+    if (isConnecting) return;
+    setIsConnecting(true);
+    try {
+      await onStartCall();
+    } catch (error) {
+      console.error('Failed to start call:', error);
+      const message =
+        error instanceof Error ? error.message : 'Failed to connect to agent session.';
+      toast.error(message, {
+        description:
+          'Please ensure LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET are configured in your Vercel project settings.',
+      });
+      setIsConnecting(false);
+    }
+  };
+
   return (
     <div ref={ref}>
       <section className="bg-background flex flex-col items-center justify-center text-center">
@@ -39,10 +62,11 @@ export const WelcomeView = ({
 
         <Button
           size="lg"
-          onClick={onStartCall}
+          onClick={handleClick}
+          disabled={isConnecting}
           className="mt-6 w-64 rounded-full font-mono text-xs font-bold tracking-wider uppercase"
         >
-          {startButtonText}
+          {isConnecting ? 'Connecting...' : startButtonText}
         </Button>
       </section>
 

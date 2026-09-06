@@ -13,38 +13,42 @@ type ConnectionDetails = {
   participantToken: string;
 };
 
-// NOTE: you are expected to define the following environment variables in `.env.local`:
-const API_KEY = process.env.LIVEKIT_API_KEY;
-const API_SECRET = process.env.LIVEKIT_API_SECRET;
-const LIVEKIT_URL = process.env.LIVEKIT_URL;
-
-// don't cache the results
+// Don't cache results
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function POST(req: Request) {
-  // make an exception for the vercel preview environment
-  if (process.env.NODE_ENV !== 'development' && process.env.IS_VERCEL_PREVIEW !== 'true') {
-    throw new Error(
-      'THIS API ROUTE IS INSECURE. DO NOT USE THIS ROUTE IN PRODUCTION WITHOUT AN AUTHENTICATION LAYER.'
-    );
-  }
-
   try {
-    if (LIVEKIT_URL === undefined) {
-      throw new Error('LIVEKIT_URL is not defined');
+    const apiKey = process.env.LIVEKIT_API_KEY;
+    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    const livekitUrl = process.env.LIVEKIT_URL;
+
+    if (!livekitUrl) {
+      return new NextResponse('LIVEKIT_URL is not defined in environment variables', {
+        status: 500,
+      });
     }
-    if (API_KEY === undefined) {
-      throw new Error('LIVEKIT_API_KEY is not defined');
+    if (!apiKey) {
+      return new NextResponse('LIVEKIT_API_KEY is not defined in environment variables', {
+        status: 500,
+      });
     }
-    if (API_SECRET === undefined) {
-      throw new Error('LIVEKIT_API_SECRET is not defined');
+    if (!apiSecret) {
+      return new NextResponse('LIVEKIT_API_SECRET is not defined in environment variables', {
+        status: 500,
+      });
     }
 
     // Parse room config from request body.
-    const body = await req.json();
-    const roomConfig = body?.room_config
-      ? RoomConfiguration.fromJson(body.room_config, { ignoreUnknownFields: true })
-      : new RoomConfiguration();
+    let roomConfig: RoomConfiguration | undefined;
+    try {
+      const body = await req.json();
+      roomConfig = body?.room_config
+        ? RoomConfiguration.fromJson(body.room_config, { ignoreUnknownFields: true })
+        : new RoomConfiguration();
+    } catch {
+      roomConfig = new RoomConfiguration();
+    }
 
     // Generate participant token
     const participantName = 'user';
@@ -54,12 +58,14 @@ export async function POST(req: Request) {
     const participantToken = await createParticipantToken(
       { identity: participantIdentity, name: participantName },
       roomName,
-      roomConfig
+      roomConfig,
+      apiKey,
+      apiSecret
     );
 
     // Return connection details
     const data: ConnectionDetails = {
-      serverUrl: LIVEKIT_URL,
+      serverUrl: livekitUrl,
       roomName,
       participantName,
       participantToken,
@@ -69,19 +75,20 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(data, { headers });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(error);
-      return new NextResponse(error.message, { status: 500 });
-    }
+    console.error('Error generating token:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error generating token';
+    return new NextResponse(message, { status: 500 });
   }
 }
 
 function createParticipantToken(
   userInfo: AccessTokenOptions,
   roomName: string,
-  roomConfig: RoomConfiguration | undefined
+  roomConfig: RoomConfiguration | undefined,
+  apiKey: string,
+  apiSecret: string
 ): Promise<string> {
-  const at = new AccessToken(API_KEY, API_SECRET, {
+  const at = new AccessToken(apiKey, apiSecret, {
     ...userInfo,
     ttl: '15m',
   });
