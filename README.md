@@ -133,6 +133,19 @@ AGENT_NAME=
 
 These are required for the voice agent functionality to work with your LiveKit project.
 
+### Deploying to Vercel
+
+Vercel does not load `.env.example` from GitHub. Add these variables in the Vercel project settings under **Settings -> Environment Variables**, for the environments you deploy to:
+
+```text
+LIVEKIT_API_KEY
+LIVEKIT_API_SECRET
+LIVEKIT_URL
+AGENT_NAME
+```
+
+After adding or changing them, redeploy the project. Keep real credentials in Vercel and in local `.env.local` only; never commit them to `.env.example` or any other repository file. The LiveKit API key and secret previously committed to this repository should be rotated in LiveKit immediately.
+
 ## Contributing
 
 This template is open source and we welcome contributions! Please open a PR or issue through GitHub, and don't forget to join us in the [LiveKit Community Slack](https://livekit.io/join-slack)!
